@@ -28,44 +28,80 @@ if len(sys.argv) > 1:
     silent_arg: str = sys.argv[1].lower()
     silent_mode = silent_arg == "--silent" or silent_arg == "-s"
 
-"""Shows prompt to user to allow them to review output before exiting.
-Very helpful for Windows.
-"""
 def exit_prompt():
+    """Shows prompt to user to allow them to review output before exiting.
+    Very helpful for Windows.
+    """
+
     if silent_mode: return
     input("Press enter to exit...")
 
-"""Prints message if silent_mode is off.
-:param msg: The message to print to output.
-"""
 def log(msg: str):
+    """Prints message if silent_mode is off.
+    :param msg: The message to print to output.
+    """
+
     if silent_mode: return
     print(msg)
 
-"""Creates a zip archive with the proper name formatting.
-:param platform: The name of the platform this zip is for.
-:param files: An array of file paths that go into this zip.
-"""
-# TODO: Figure out typing for Array
-def create_archive(platform: str, files: Array[str]):
-    with zipfile.ZipFile("["+platform+"] "+game_name+".zip", "w", ZIP_DEFLATED) as archive:
+def create_archive(platform: str, path: str):
+    """Creates a zip archive with the proper name formatting.
+    :param platform: The name of the platform this zip is for.
+    :param files: An array of file paths that go into this zip.
+    """
+
+    global game_name
+    if not os.path.exists(path): return
+    log("Creating "+platform+" archive...")
+
+    files: list[str] = get_files(path)
+
+    os.chdir(path)
+    archive_name = "["+platform+"] "+game_name+".zip"
+    with zipfile.ZipFile(os.path.join("..", archive_name), "w", zipfile.ZIP_DEFLATED) as archive:
         for file in files:
             archive.write(file)
 
-"""Sets the global game_name variable by using one of the platform files.
-"""
+    log("Finished creating "+platform+" archive!")
+
+def get_files(path: str, root_path: str = None) -> list[str]:
+    """Gets a list of all files in a directory, relative to the directory itself.
+    :param path: The directory to walk through
+    :param root_path: Internal use. Leave blank. Used to keep track of where to start the relative path.
+    """
+
+    if root_path == None:
+        root_path = path
+
+    files: list[str] = []
+    for _, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            abs_path = os.path.join(path, filename)
+            if os.path.exists(abs_path):
+                rel_path = os.path.relpath(abs_path, root_path)
+                files.append(rel_path)
+        for dirname in dirnames:
+            abs_path = os.path.join(path, dirname)
+            if os.path.exists(abs_path):
+                files.extend(get_files(abs_path, root_path))
+
+    return files
+
 def set_game_name():
+    """Sets the global game_name variable by using one of the platform files.
+    """
+
     global game_name
     chosen_dir: str = ""
     extension: str = ""
     if os.path.exists(windows_dir):
         log("Deducing game name from Windows build...")
         chosen_dir = windows_dir
-        extension = ".exe"
+        extension = ".pck"
     elif os.path.exists(linux_dir):
         log("Deducing game name from Linux build...")
         chosen_dir = linux_dir
-        extension = ".x86_64"
+        extension = ".pck"
     elif os.path.exists(web_dir):
         log("Deducing game name from Web build...")
         chosen_dir = web_dir
@@ -75,8 +111,7 @@ def set_game_name():
         exit_prompt()
         exit(66) # Input error
 
-    # TODO: Figure out typing for Array
-    files: Array[str] = os.listdir(chosen_dir)
+    files: list[str] = os.listdir(chosen_dir)
     for file in files:
         if file.endswith(extension):
             game_name = os.path.splitext(file)[0]
@@ -87,9 +122,10 @@ def set_game_name():
         exit_prompt()
         exit(66) # Input error
 
-"""Renames the html file for Web platform to 'index.html'
-"""
 def rename_web_index():
+    """Renames the html file for Web platform to 'index.html'
+    """
+
     global game_name
     if not os.path.exists(web_dir):
         log("No Web build found.")
@@ -97,28 +133,38 @@ def rename_web_index():
 
     index_file: str = os.path.join(web_dir, game_name+".html")
     renamed_index_file: str = os.path.join(web_dir, "index.html")
+
+    if os.path.exists(renamed_index_file):
+        log("Already renamed "+game_name+".html to index.html for Web build, skipping...")
+        return
+
     os.rename(index_file, renamed_index_file)
     log("Renamed "+game_name+".html to index.html for Web build")
 
-"""Removes the Godot console exe from the Windows platform
-"""
 def remove_console_exe():
+    """Removes the Godot console exe from the Windows platform
+    """
+
     global game_name
     if not os.path.exists(windows_dir):
         log("No Windows build found.")
         return
 
-    # TODO: Confirm console file name
     console_file: str = os.path.join(windows_dir, game_name+".console.exe")
+    if not os.path.exists(console_file):
+        log("Already removed console exe from Windows build, skipping...")
+        return
+
     os.remove(console_file)
     log("Removed console exe from Windows build")
 
-"""Packages all platforms into their own separate zip folders
-"""
 def create_all_archives():
-    global game_name
-    # TODO
-    log("Not implemented yet!")
+    """Packages all platforms into their own separate zip folders
+    """
+
+    create_archive("Windows", windows_dir)
+    create_archive("Linux", linux_dir)
+    create_archive("Web", web_dir)
 
 try:
     set_game_name()
