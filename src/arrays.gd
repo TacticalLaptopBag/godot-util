@@ -1,7 +1,7 @@
 extends Object
 class_name Arrays
 
-func _init(param = null):
+func _init():
     assert(false, "Do not create an instance of Arrays!")
 
 static func find(array: Array, find_func: Callable) -> Variant:
@@ -10,7 +10,7 @@ static func find(array: Array, find_func: Callable) -> Variant:
             return item
     return null
 
-static func random(array: Array) -> Variant
+static func random(array: Array) -> Variant:
     if array.size() == 0: return null
     if array.size() == 1: return array[0]
 
