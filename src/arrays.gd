@@ -1,3 +1,7 @@
+'''
+Utility class for manipulating arrays.
+Do not create an instance of this class.
+'''
 extends Object
 class_name Arrays
 
